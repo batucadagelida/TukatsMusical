@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batucada Interactiva - Ensemble</title>
+    <!-- Tone.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <style>
+        :root {
+            --primary: #ffcc00;
+            --secondary: #333;
+            --success: #2ecc71;
+            --error: #e74c3c;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--secondary);
+            overflow-x: hidden;
+        }
+
+        h1 { 
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 900;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.05);
+        }
+
+        p.subtitle {
+            margin-bottom: 30px;
+            color: #666;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .batucada-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        @media (max-width: 480px) {
+            .batucada-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .instrumento {
+            background: white;
+            border: 3px solid #eee;
+            border-radius: 20px;
+            padding: 25px 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .instrumento:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        .instrumento.active {
+            border-color: var(--primary);
+            background-color: #fffdf2;
+            animation: pulse 0.6s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.2); }
+            to { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
+        }
+
+        .icon {
+            font-size: 45px;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+        }
+
+        .label {
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #444;
+            letter-spacing: 1px;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.5s ease;
+        }
+
+        #start-btn {
+            padding: 20px 50px;
+            font-size: 20px;
+            cursor: not-allowed;
+            background: #ccc;
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 900;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #start-btn.ready {
+            cursor: pointer;
+            background: var(--primary);
+            color: var(--secondary);
+        }
+
+        #start-btn.error {
+            background: var(--error);
+            cursor: pointer;
+        }
+
+        .loading-status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #888;
+            max-width: 300px;
+        }
+
+        .error-notice {
+            color: var(--error);
+            display: none;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <div class="icon" style="font-size: 80px;">🥁</div>
+        <h1>Batucada Interactiva</h1>
+        <p>Crea tu propio ritmo sumando instrumentos.</p>
+        <button id="start-btn" disabled>Cargando sonidos...</button>
+        <div class="loading-status" id="status-text">Conectando con los archivos de audio...</div>
+        <div class="error-notice" id="error-notice">Nota: No se encontraron los archivos .ogg. Se usarán sonidos de prueba.</div>
+    </div>
+
+    <h1>Batucada Ensemble</h1>
+    <p class="subtitle">Haz clic en los instrumentos para sumarlos al ritmo</p>
+    
+    <div class="batucada-grid">
+        <div class="instrumento" id="1a">
+            <div class="icon">🥁</div>
+            <div class="label">1ª Surdo</div>
+        </div>
+        <div class="instrumento" id="2a">
+            <div class="icon">🥁</div>
+            <div class="label">2ª Surdo</div>
+        </div>
+        <div class="instrumento" id="3a">
+            <div class="icon">🥁</div>
+            <div class="label">3ª Surdo</div>
+        </div>
+        <div class="instrumento" id="Tamborin">
+            <div class="icon">🪘</div>
+            <div class="label">Tamborin</div>
+        </div>
+        <div class="instrumento" id="Agogo">
+            <div class="icon">🔔</div>
+            <div class="label">Agogo</div>
+        </div>
+        <div class="instrumento" id="Caja">
+            <div class="icon">🥁</div>
+            <div class="label">Caja</div>
+        </div>
+        <div class="instrumento" id="Rocar">
+            <div class="icon">✨</div>
+            <div class="label">Rocar</div>
+        </div>
+        <div class="instrumento" id="Block">
+            <div class="icon">🪵</div>
+            <div class="label">Block</div>
+        </div>
+        <div class="instrumento" id="Repe">
+            <div class="icon">🪘</div>
+            <div class="label">Repe</div>
+        </div>
+    </div>
+
+    <script>
+        // Resolvemos el problema de las URLs usando rutas absolutas basadas en la ubicación actual
+        const getAudioPath = (file) => {
+            // Esto ayuda a que el parseo de la URL sea exitoso en entornos de prueba
+            try {
+                return new URL(file, window.location.href).href;
+            } catch(e) {
+                return file;
+            }
+        };
+
+        const audioFiles = {
+            "1a": getAudioPath("1a.ogg"),
+            "2a": getAudioPath("2a.ogg"),
+            "3a": getAudioPath("3a.ogg"),
+            "Tamborin": getAudioPath("Tamborin.ogg"),
+            "Agogo": getAudioPath("Agogo.ogg"),
+            "Caja": getAudioPath("Caja.ogg"),
+            "Rocar": getAudioPath("Rocar.ogg"),
+            "Block": getAudioPath("Block.ogg"),
+            "Repe": getAudioPath("Repe.ogg")
+        };
+
+        const startBtn = document.getElementById('start-btn');
+        const statusText = document.getElementById('status-text');
+        const overlay = document.getElementById('overlay');
+        const errorNotice = document.getElementById('error-notice');
+
+        let isUsingSynthFallback = false;
+        let players = null;
+        let synths = {};
+
+        // Intentamos cargar los archivos
+        try {
+            players = new Tone.Players(audioFiles).toDestination();
+            
+            Tone.loaded().then(() => {
+                setupApp(false);
+            }).catch(err => {
+                console.warn("No se pudieron cargar los archivos de audio. Activando modo sintético.");
+                setupApp(true);
+            });
+        } catch (e) {
+            setupApp(true);
+        }
+
+        function setupApp(useFallback) {
+            isUsingSynthFallback = useFallback;
+            
+            if (!useFallback) {
+                Object.keys(audioFiles).forEach(key => {
+                    const p = players.player(key);
+                    p.loop = true;
+                    p.mute = true;
+                    p.fadeIn = 0.1;
+                });
+            } else {
+                // Crear sonidos básicos para que la app sea funcional sin archivos
+                Object.keys(audioFiles).forEach(key => {
+                    synths[key] = { 
+                        active: false,
+                        osc: new Tone.MembraneSynth().toDestination() 
+                    };
+                });
+                errorNotice.style.display = 'block';
+            }
+
+            startBtn.disabled = false;
+            startBtn.classList.add('ready');
+            startBtn.innerText = useFallback ? "PROBAR CON SYNTHS" : "¡EMPEZAR!";
+            statusText.innerText = useFallback ? "Modo de compatibilidad activado." : "¡Todo listo!";
+        }
+
+        startBtn.addEventListener('click', async () => {
+            await Tone.start();
+            
+            if (!isUsingSynthFallback) {
+                Object.keys(audioFiles).forEach(key => players.player(key).start());
+            } else {
+                // Lógica de metrónomo simple para el modo fallback
+                const loop = new Tone.Loop(time => {
+                    Object.keys(synths).forEach((key, index) => {
+                        if (synths[key].active) {
+                            // Simulamos un ritmo básico de batucada
+                            if (key.includes('Surdo') || key === '1a' || key === '2a') {
+                                synths[key].osc.triggerAttackRelease("C1", "8n", time);
+                            } else {
+                                synths[key].osc.triggerAttackRelease("G2", "16n", time);
+                            }
+                        }
+                    });
+                }, "4n").start(0);
+                Tone.Transport.start();
+            }
+
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 500);
+        });
+
+        document.querySelectorAll('.instrumento').forEach(boton => {
+            boton.addEventListener('click', () => {
+                const id = boton.id;
+                
+                if (!isUsingSynthFallback) {
+                    const player = players.player(id);
+                    player.mute = !player.mute;
+                    boton.classList.toggle('active', !player.mute);
+                } else {
+                    synths[id].active = !synths[id].active;
+                    boton.classList.toggle('active', synths[id].active);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
