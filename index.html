@@ -1,327 +1,292 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Batucada Interactiva - Ensemble</title>
-    <!-- Tone.js CDN -->
+    <title>Tukats Musical - Batucada Interactiva</title>
+    <!-- Motor d'àudio Tone.js per a sincronització professional -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <style>
         :root {
             --primary: #ffcc00;
-            --secondary: #333;
-            --success: #2ecc71;
-            --error: #e74c3c;
-            --bg: #f8f9fa;
+            --secondary: #1a472a; 
+            /* Colors basats en Tukats Bolos */
+            --bg-color: #2b5a27; 
+            --bg-gradient: linear-gradient(135deg, #2b5a27 0%, #1e3c1a 100%);
+            --card-bg: rgba(255, 255, 255, 0.96);
         }
 
         body {
-            background-color: var(--bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-color);
+            background: var(--bg-gradient);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            color: var(--secondary);
+            color: white;
+            user-select: none;
             overflow-x: hidden;
         }
 
-        h1 { 
-            margin-top: 20px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-weight: 900;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.05);
-        }
-
-        p.subtitle {
-            margin-bottom: 30px;
-            color: #666;
+        .header-container {
             text-align: center;
-            padding: 0 20px;
+            margin-bottom: 25px;
+            z-index: 10;
         }
 
+        /* Estil per al Logo */
+        .logo-img {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        }
+
+        h1 { 
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            font-weight: 900;
+            font-size: clamp(1.8rem, 6vw, 2.8rem);
+            text-shadow: 3px 3px 0px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            color: #ffcc00; /* Groc per destacar com a la web de bolos */
+            font-size: 0.95rem;
+            margin-top: 8px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Quadrícula d'Instruments */
         .batucada-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            width: 90%;
-            max-width: 600px;
-            padding: 20px;
+            width: 92%;
+            max-width: 750px;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 35px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        @media (max-width: 480px) {
-            .batucada-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        @media (max-width: 600px) {
+            .batucada-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .logo-img { max-width: 130px; }
         }
 
+        /* Estil dels botons */
         .instrumento {
-            background: white;
-            border: 3px solid #eee;
-            border-radius: 20px;
-            padding: 25px 15px;
+            background: var(--card-bg);
+            border: 4px solid transparent;
+            border-radius: 22px;
+            padding: 30px 10px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
-            user-select: none;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            position: relative;
-        }
-
-        /* Estado: Esperando sincronización */
-        .instrumento.waiting {
-            border-color: #aaa;
-            background-color: #eee;
-            opacity: 0.7;
-            animation: blink 0.4s infinite;
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.5; }
-            50% { opacity: 0.8; }
-            100% { opacity: 0.5; }
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            color: var(--secondary);
         }
 
         .instrumento:hover {
-            transform: translateY(-3px);
-            border-color: var(--primary);
+            transform: translateY(-6px);
+            background: white;
         }
 
+        /* Animació d'espera (Quantització) */
+        .instrumento.waiting {
+            animation: sync-blink 0.4s infinite;
+            filter: grayscale(0.4) brightness(0.8);
+        }
+
+        @keyframes sync-blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.97); }
+        }
+
+        /* Estat Actiu */
         .instrumento.active {
             border-color: var(--primary);
-            background-color: #fffdf2;
-            animation: pulse 0.6s infinite alternate;
-            opacity: 1;
+            background-color: white;
+            transform: scale(1.06);
+            box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
         }
 
-        @keyframes pulse {
-            from { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.2); }
-            to { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 204, 0, 0.4); }
-        }
+        .icon { font-size: 45px; margin-bottom: 12px; }
+        .label { font-weight: 900; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
 
-        .icon {
-            font-size: 45px;
-            margin-bottom: 12px;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
-        }
-
-        .label {
-            font-weight: 800;
-            text-transform: uppercase;
-            font-size: 11px;
-            color: #444;
-            letter-spacing: 1px;
-        }
-
+        /* Pantalla d'Inici / Càrrega */
         #overlay {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.98);
-            backdrop-filter: blur(10px);
+            inset: 0;
+            background: var(--bg-color);
+            background: var(--bg-gradient);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
-            flex-direction: column;
-            text-align: center;
-            padding: 20px;
-            transition: opacity 0.5s ease;
+            z-index: 2000;
+            transition: opacity 0.8s ease;
         }
 
         #start-btn {
-            padding: 20px 50px;
-            font-size: 20px;
+            padding: 22px 70px;
+            font-size: 24px;
             cursor: not-allowed;
-            background: #ccc;
-            color: white;
-            border: none;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.4);
+            border: 2px solid rgba(255,255,255,0.2);
             border-radius: 100px;
             font-weight: 900;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
+            transition: all 0.3s;
         }
 
         #start-btn.ready {
             cursor: pointer;
             background: var(--primary);
             color: var(--secondary);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
 
-        .loading-status {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #888;
+        #start-btn.ready:hover {
+            transform: scale(1.08);
+            filter: brightness(1.1);
         }
 
-        .error-notice {
-            color: var(--error);
-            display: none;
-            margin-top: 10px;
-            font-weight: bold;
+        .loading-text {
+            margin-top: 25px;
+            font-weight: 700;
+            color: #a8d5a2;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
         }
     </style>
 </head>
 <body>
 
+    <!-- Pantalla de Benvinguda -->
     <div id="overlay">
-        <div class="icon" style="font-size: 80px;">🥁</div>
-        <h1>Batucada Interactiva</h1>
-        <p>Crea tu propio ritmo sincronizado al milisegundo.</p>
-        <button id="start-btn" disabled>Cargando sonidos...</button>
-        <div class="loading-status" id="status-text">Cargando batería musical...</div>
-        <div class="error-notice" id="error-notice">Nota: Usando sintetizadores de emergencia.</div>
+        <!-- Substitueix "logo.png" pel camí del teu fitxer de logo real -->
+        <img src="logo.png" alt="Tukats Logo" class="logo-img" onerror="this.style.display='none'; document.getElementById('fallback-icon').style.display='block';">
+        <div id="fallback-icon" class="icon" style="display:none; font-size: 100px; margin-bottom: 20px;">🥁</div>
+        
+        <h1 style="margin-bottom: 15px;">TUKATS MUSICAL</h1>
+        <button id="start-btn" disabled>CARREGANT...</button>
+        <div class="loading-text" id="loader-status">SINCRONITZANT RITMES</div>
     </div>
 
-    <h1>Batucada Ensemble</h1>
-    <p class="subtitle">Los instrumentos entrarán al inicio del siguiente compás para mantener el ritmo.</p>
+    <div class="header-container">
+        <img src="logo.png" alt="Tukats Logo" class="logo-img" style="max-width: 120px;" onerror="this.style.display='none'">
+        <h1>TUKATS MUSICAL</h1>
+        <p class="subtitle">BATUCADA INTERACTIVA • 110 BPM</p>
+    </div>
     
     <div class="batucada-grid">
-        <div class="instrumento" id="1a">
-            <div class="icon">🥁</div>
-            <div class="label">1ª Surdo</div>
-        </div>
-        <div class="instrumento" id="2a">
-            <div class="icon">🥁</div>
-            <div class="label">2ª Surdo</div>
-        </div>
-        <div class="instrumento" id="3a">
-            <div class="icon">🥁</div>
-            <div class="label">3ª Surdo</div>
-        </div>
-        <div class="instrumento" id="Tamborin">
-            <div class="icon">🪘</div>
-            <div class="label">Tamborin</div>
-        </div>
-        <div class="instrumento" id="Agogo">
-            <div class="icon">🔔</div>
-            <div class="label">Agogo</div>
-        </div>
-        <div class="instrumento" id="Caja">
-            <div class="icon">🥁</div>
-            <div class="label">Caja</div>
-        </div>
-        <div class="instrumento" id="Rocar">
-            <div class="icon">✨</div>
-            <div class="label">Rocar</div>
-        </div>
-        <div class="instrumento" id="Block">
-            <div class="icon">🪵</div>
-            <div class="label">Block</div>
-        </div>
-        <div class="instrumento" id="Repe">
-            <div class="icon">🪘</div>
-            <div class="label">Repe</div>
-        </div>
+        <div class="instrumento" id="1a"><div class="icon">🥁</div><div class="label">Surdo 1a</div></div>
+        <div class="instrumento" id="2a"><div class="icon">🥁</div><div class="label">Surdo 2a</div></div>
+        <div class="instrumento" id="3a"><div class="icon">🥁</div><div class="label">Surdo 3a</div></div>
+        <div class="instrumento" id="Caja"><div class="icon">🥁</div><div class="label">Caixa</div></div>
+        <div class="instrumento" id="Tamborin"><div class="icon">🪘</div><div class="label">Tamborí</div></div>
+        <div class="instrumento" id="Block"><div class="icon">🪵</div><div class="label">Bloc</div></div>
+        <div class="instrumento" id="Agogo"><div class="icon">🔔</div><div class="label">Agogó</div></div>
+        <div class="instrumento" id="Chapas"><div class="icon">✨</div><div class="label">Xapes</div></div>
+        <div class="instrumento" id="Repe"><div class="icon">🪘</div><div class="label">Repe</div></div>
     </div>
 
     <script>
-        const getAudioPath = (file) => {
+        const getUrl = (file) => {
             try {
                 return new URL(file, window.location.href).href;
-            } catch(e) {
+            } catch (e) {
                 return file;
             }
         };
 
         const audioFiles = {
-            "1a": getAudioPath("1a.ogg"),
-            "2a": getAudioPath("2a.ogg"),
-            "3a": getAudioPath("3a.ogg"),
-            "Tamborin": getAudioPath("Tamborin.ogg"),
-            "Agogo": getAudioPath("Agogo.ogg"),
-            "Caja": getAudioPath("Caja.ogg"),
-            "Rocar": getAudioPath("Rocar.ogg"),
-            "Block": getAudioPath("Block.ogg"),
-            "Repe": getAudioPath("Repe.ogg")
+            "1a": getUrl("1a.ogg"),
+            "2a": getUrl("2a.ogg"),
+            "3a": getUrl("3a.ogg"),
+            "Caja": getUrl("Caja.ogg"),
+            "Tamborin": getUrl("Tamborin.ogg"),
+            "Block": getUrl("Block.ogg"),
+            "Agogo": getUrl("Agogo.ogg"),
+            "Chapas": getUrl("Chapas.ogg"),
+            "Repe": getUrl("Repe.ogg")
         };
 
         const startBtn = document.getElementById('start-btn');
-        const statusText = document.getElementById('status-text');
         const overlay = document.getElementById('overlay');
-        const errorNotice = document.getElementById('error-notice');
+        const loaderStatus = document.getElementById('loader-status');
 
-        let isUsingSynthFallback = false;
-        let players = null;
-        let synths = {};
+        const activeStates = {};
+        Object.keys(audioFiles).forEach(key => activeStates[key] = false);
 
-        // Configurar el tempo de la batucada (puedes ajustarlo si tus archivos son más rápidos/lentos)
-        Tone.Transport.bpm.value = 120;
+        Tone.Transport.bpm.value = 110;
 
-        try {
-            players = new Tone.Players(audioFiles).toDestination();
-            Tone.loaded().then(() => setupApp(false))
-                        .catch(() => setupApp(true));
-        } catch (e) {
-            setupApp(true);
-        }
+        const players = new Tone.Players(audioFiles).toDestination();
+        
+        const masterLoop = new Tone.Loop((time) => {
+            Object.keys(audioFiles).forEach(key => {
+                const player = players.player(key);
+                if (activeStates[key]) {
+                    player.start(time);
+                } else {
+                    player.stop(time);
+                }
+            });
+        }, "4m");
 
-        function setupApp(useFallback) {
-            isUsingSynthFallback = useFallback;
-            if (!useFallback) {
-                Object.keys(audioFiles).forEach(key => {
-                    const p = players.player(key);
-                    p.loop = true;
-                    p.mute = true;
-                    p.fadeIn = 0.05; 
-                    p.fadeOut = 0.05; 
-                    p.sync().start(0); // Sincronizados al tiempo 0 del transporte
-                });
-            } else {
-                Object.keys(audioFiles).forEach(key => {
-                    synths[key] = { active: false, osc: new Tone.MembraneSynth().toDestination() };
-                });
-                errorNotice.style.display = 'block';
-            }
+        Tone.loaded().then(() => {
+            Object.keys(audioFiles).forEach(key => {
+                players.player(key).loop = false;
+            });
+            
             startBtn.disabled = false;
             startBtn.classList.add('ready');
-            startBtn.innerText = "¡EMPEZAR!";
-            statusText.innerText = "Sincronización rítmica activa.";
-        }
+            startBtn.innerText = "COMENÇAR!";
+            loaderStatus.innerText = "LLST PER AL RITME";
+        }).catch(err => {
+            loaderStatus.innerText = "ERROR EN CARREGAR ÀUDIOS";
+            console.error(err);
+        });
 
         startBtn.addEventListener('click', async () => {
             await Tone.start();
-            Tone.Transport.start(); // El reloj maestro empieza a correr
+            masterLoop.start(0);
+            Tone.Transport.start();
             overlay.style.opacity = '0';
-            setTimeout(() => overlay.style.display = 'none', 500);
+            setTimeout(() => overlay.style.display = 'none', 800);
         });
 
         document.querySelectorAll('.instrumento').forEach(boton => {
             boton.addEventListener('click', () => {
                 const id = boton.id;
-                
-                if (!isUsingSynthFallback) {
-                    const player = players.player(id);
-                    const willBeMute = !player.mute;
+                const willEnable = !activeStates[id];
 
-                    // AÑADIMOS ESTADO DE ESPERA
-                    // El botón parpadeará hasta que llegue el cambio de compás
-                    boton.classList.add('waiting');
+                boton.classList.add('waiting');
 
-                    // PROGRAMAMOS EL CAMBIO PARA EL SIGUIENTE COMPÁS (@1m)
-                    Tone.Transport.scheduleOnce((time) => {
-                        // Usamos Tone.Draw para sincronizar cambios visuales con el audio
-                        Tone.Draw.schedule(() => {
-                            player.mute = willBeMute;
-                            boton.classList.remove('waiting');
-                            boton.classList.toggle('active', !willBeMute);
-                        }, time);
-                    }, "@1m");
-
-                } else {
-                    // Lógica para modo fallback (opcional)
-                    synths[id].active = !synths[id].active;
-                    boton.classList.toggle('active', synths[id].active);
-                }
+                Tone.Transport.scheduleOnce((time) => {
+                    Tone.Draw.schedule(() => {
+                        activeStates[id] = willEnable;
+                        boton.classList.remove('waiting');
+                        boton.classList.toggle('active', willEnable);
+                    }, time);
+                }, "@4m");
             });
         });
     </script>
