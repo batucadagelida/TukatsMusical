@@ -11,7 +11,6 @@
         :root {
             --primary: #ffcc00;
             --secondary: #1a472a; 
-            /* Colors basats en Tukats Bolos */
             --bg-color: #2b5a27; 
             --bg-gradient: linear-gradient(135deg, #2b5a27 0%, #1e3c1a 100%);
             --card-bg: rgba(255, 255, 255, 0.96);
@@ -38,7 +37,6 @@
             z-index: 10;
         }
 
-        /* Estil per al Logo */
         .logo-img {
             max-width: 180px;
             height: auto;
@@ -56,7 +54,7 @@
         }
 
         .subtitle {
-            color: #ffcc00; /* Groc per destacar com a la web de bolos */
+            color: #ffcc00;
             font-size: 0.95rem;
             margin-top: 8px;
             font-weight: 700;
@@ -64,7 +62,6 @@
             text-transform: uppercase;
         }
 
-        /* Quadrícula d'Instruments */
         .batucada-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -83,7 +80,6 @@
             .logo-img { max-width: 130px; }
         }
 
-        /* Estil dels botons */
         .instrumento {
             background: var(--card-bg);
             border: 4px solid transparent;
@@ -104,7 +100,6 @@
             background: white;
         }
 
-        /* Estat Actiu */
         .instrumento.active {
             border-color: var(--primary);
             background-color: white;
@@ -121,7 +116,6 @@
         .icon { font-size: 45px; margin-bottom: 12px; }
         .label { font-weight: 900; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
 
-        /* Pantalla d'Inici / Càrrega */
         #overlay {
             position: fixed;
             inset: 0;
@@ -174,14 +168,13 @@
 </head>
 <body>
 
-    <!-- Pantalla de Benvinguda -->
     <div id="overlay">
         <img src="logo.png" alt="Tukats Logo" class="logo-img" onerror="this.style.display='none'; document.getElementById('fallback-icon').style.display='block';">
         <div id="fallback-icon" class="icon" style="display:none; font-size: 100px; margin-bottom: 20px;">🥁</div>
         
         <h1 style="margin-bottom: 15px;">TUKATS MUSICAL</h1>
         <button id="start-btn" disabled>CARREGANT...</button>
-        <div class="loading-text" id="loader-status">PREPARANT EL RITME</div>
+        <div class="loading-text" id="loader-status">PREPARANT LA SINCRONITZACIÓ</div>
     </div>
 
     <div class="header-container">
@@ -227,23 +220,28 @@
         const overlay = document.getElementById('overlay');
         const loaderStatus = document.getElementById('loader-status');
 
+        // Configuració estricta del Tempo
         Tone.Transport.bpm.value = 110;
 
         const players = new Tone.Players(audioFiles).toDestination();
         
-        // Ara tots els instruments estaran sincronitzats amb el Transport
         Tone.loaded().then(() => {
             Object.keys(audioFiles).forEach(key => {
                 const p = players.player(key);
                 p.loop = true;
-                p.mute = true; // Comencen muts
-                p.sync().start(0); // Sincronitzats al temps 0 del rellotge mestre
+                p.mute = true; 
+                p.autostart = false;
+                p.fadeIn = 0.05; // Evita clics en activar
+                p.fadeOut = 0.05; // Evita clics en desactivar
+                
+                // Sincronització absoluta al Transport
+                p.sync().start(0); 
             });
             
             startBtn.disabled = false;
             startBtn.classList.add('ready');
             startBtn.innerText = "COMENÇAR!";
-            loaderStatus.innerText = "LLIST PER AL RITME";
+            loaderStatus.innerText = "SISTEMA SINCRONITZAT";
         }).catch(err => {
             loaderStatus.innerText = "ERROR EN CARREGAR ÀUDIOS";
             console.error(err);
@@ -251,8 +249,12 @@
 
         startBtn.addEventListener('click', async () => {
             await Tone.start();
-            // Simplement arranquem el Transport. Els instruments muts començaran a "sonar" en segon pla.
+            
+            // Reiniciem el rellotge mestre per assegurar que tots comencen igual
+            Tone.Transport.stop();
+            Tone.Transport.seconds = 0;
             Tone.Transport.start();
+            
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 800);
         });
@@ -262,12 +264,12 @@
                 const id = boton.id;
                 const player = players.player(id);
                 
-                // Ara l'acció és immediata: canviem el muting a l'instant
-                const willBeMute = !player.mute;
-                player.mute = willBeMute;
+                // Canvi de volum/muting immediat
+                const isCurrentlyMute = player.mute;
+                player.mute = !isCurrentlyMute;
                 
-                // Canvi visual instantani
-                boton.classList.toggle('active', !willBeMute);
+                // Feedback visual
+                boton.classList.toggle('active', isCurrentlyMute);
             });
         });
     </script>
