@@ -91,7 +91,7 @@
             padding: 30px 10px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -104,23 +104,18 @@
             background: white;
         }
 
-        /* Animació d'espera (Quantització) */
-        .instrumento.waiting {
-            animation: sync-blink 0.4s infinite;
-            filter: grayscale(0.4) brightness(0.8);
-        }
-
-        @keyframes sync-blink {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(0.97); }
-        }
-
         /* Estat Actiu */
         .instrumento.active {
             border-color: var(--primary);
             background-color: white;
             transform: scale(1.06);
             box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1.06); }
+            to { transform: scale(1.1); }
         }
 
         .icon { font-size: 45px; margin-bottom: 12px; }
@@ -181,13 +176,12 @@
 
     <!-- Pantalla de Benvinguda -->
     <div id="overlay">
-        <!-- Substitueix "logo.png" pel camí del teu fitxer de logo real -->
         <img src="logo.png" alt="Tukats Logo" class="logo-img" onerror="this.style.display='none'; document.getElementById('fallback-icon').style.display='block';">
         <div id="fallback-icon" class="icon" style="display:none; font-size: 100px; margin-bottom: 20px;">🥁</div>
         
         <h1 style="margin-bottom: 15px;">TUKATS MUSICAL</h1>
         <button id="start-btn" disabled>CARREGANT...</button>
-        <div class="loading-text" id="loader-status">SINCRONITZANT RITMES</div>
+        <div class="loading-text" id="loader-status">PREPARANT EL RITME</div>
     </div>
 
     <div class="header-container">
@@ -233,33 +227,23 @@
         const overlay = document.getElementById('overlay');
         const loaderStatus = document.getElementById('loader-status');
 
-        const activeStates = {};
-        Object.keys(audioFiles).forEach(key => activeStates[key] = false);
-
         Tone.Transport.bpm.value = 110;
 
         const players = new Tone.Players(audioFiles).toDestination();
         
-        const masterLoop = new Tone.Loop((time) => {
-            Object.keys(audioFiles).forEach(key => {
-                const player = players.player(key);
-                if (activeStates[key]) {
-                    player.start(time);
-                } else {
-                    player.stop(time);
-                }
-            });
-        }, "4m");
-
+        // Ara tots els instruments estaran sincronitzats amb el Transport
         Tone.loaded().then(() => {
             Object.keys(audioFiles).forEach(key => {
-                players.player(key).loop = false;
+                const p = players.player(key);
+                p.loop = true;
+                p.mute = true; // Comencen muts
+                p.sync().start(0); // Sincronitzats al temps 0 del rellotge mestre
             });
             
             startBtn.disabled = false;
             startBtn.classList.add('ready');
             startBtn.innerText = "COMENÇAR!";
-            loaderStatus.innerText = "LLST PER AL RITME";
+            loaderStatus.innerText = "LLIST PER AL RITME";
         }).catch(err => {
             loaderStatus.innerText = "ERROR EN CARREGAR ÀUDIOS";
             console.error(err);
@@ -267,7 +251,7 @@
 
         startBtn.addEventListener('click', async () => {
             await Tone.start();
-            masterLoop.start(0);
+            // Simplement arranquem el Transport. Els instruments muts començaran a "sonar" en segon pla.
             Tone.Transport.start();
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 800);
@@ -276,17 +260,14 @@
         document.querySelectorAll('.instrumento').forEach(boton => {
             boton.addEventListener('click', () => {
                 const id = boton.id;
-                const willEnable = !activeStates[id];
-
-                boton.classList.add('waiting');
-
-                Tone.Transport.scheduleOnce((time) => {
-                    Tone.Draw.schedule(() => {
-                        activeStates[id] = willEnable;
-                        boton.classList.remove('waiting');
-                        boton.classList.toggle('active', willEnable);
-                    }, time);
-                }, "@4m");
+                const player = players.player(id);
+                
+                // Ara l'acció és immediata: canviem el muting a l'instant
+                const willBeMute = !player.mute;
+                player.mute = willBeMute;
+                
+                // Canvi visual instantani
+                boton.classList.toggle('active', !willBeMute);
             });
         });
     </script>
