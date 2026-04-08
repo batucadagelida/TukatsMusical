@@ -67,29 +67,44 @@
             padding: 25px 15px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.2s ease;
             user-select: none;
             display: flex;
             flex-direction: column;
             align-items: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        /* Estado: Esperando sincronización */
+        .instrumento.waiting {
+            border-color: #aaa;
+            background-color: #eee;
+            opacity: 0.7;
+            animation: blink 0.4s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.5; }
         }
 
         .instrumento:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             border-color: var(--primary);
-            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
         }
 
         .instrumento.active {
             border-color: var(--primary);
             background-color: #fffdf2;
             animation: pulse 0.6s infinite alternate;
+            opacity: 1;
         }
 
         @keyframes pulse {
             from { transform: scale(1); box-shadow: 0 0 10px rgba(255, 204, 0, 0.2); }
-            to { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
+            to { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 204, 0, 0.4); }
         }
 
         .icon {
@@ -146,7 +161,6 @@
             margin-top: 15px;
             font-size: 14px;
             color: #888;
-            max-width: 300px;
         }
 
         .error-notice {
@@ -162,14 +176,14 @@
     <div id="overlay">
         <div class="icon" style="font-size: 80px;">🥁</div>
         <h1>Batucada Interactiva</h1>
-        <p>Crea tu propio ritmo sumando instrumentos sincronizados.</p>
+        <p>Crea tu propio ritmo sincronizado al milisegundo.</p>
         <button id="start-btn" disabled>Cargando sonidos...</button>
-        <div class="loading-status" id="status-text">Conectando con los archivos de audio...</div>
-        <div class="error-notice" id="error-notice">Nota: No se encontraron los archivos .ogg. Se usarán sonidos de prueba.</div>
+        <div class="loading-status" id="status-text">Cargando batería musical...</div>
+        <div class="error-notice" id="error-notice">Nota: Usando sintetizadores de emergencia.</div>
     </div>
 
     <h1>Batucada Ensemble</h1>
-    <p class="subtitle">Haz clic en los instrumentos para activarlos al ritmo maestro</p>
+    <p class="subtitle">Los instrumentos entrarán al inicio del siguiente compás para mantener el ritmo.</p>
     
     <div class="batucada-grid">
         <div class="instrumento" id="1a">
@@ -240,70 +254,43 @@
         let players = null;
         let synths = {};
 
+        // Configurar el tempo de la batucada (puedes ajustarlo si tus archivos son más rápidos/lentos)
+        Tone.Transport.bpm.value = 120;
+
         try {
             players = new Tone.Players(audioFiles).toDestination();
-            
-            Tone.loaded().then(() => {
-                setupApp(false);
-            }).catch(err => {
-                console.warn("Archivos no encontrados. Modo sintético activado.");
-                setupApp(true);
-            });
+            Tone.loaded().then(() => setupApp(false))
+                        .catch(() => setupApp(true));
         } catch (e) {
             setupApp(true);
         }
 
         function setupApp(useFallback) {
             isUsingSynthFallback = useFallback;
-            
             if (!useFallback) {
                 Object.keys(audioFiles).forEach(key => {
                     const p = players.player(key);
                     p.loop = true;
                     p.mute = true;
-                    p.fadeIn = 0.2; // Suaviza la entrada
-                    p.fadeOut = 0.2; // Suaviza la salida
-                    // Sincronizamos cada reproductor al transporte maestro
-                    p.sync().start(0);
+                    p.fadeIn = 0.05; 
+                    p.fadeOut = 0.05; 
+                    p.sync().start(0); // Sincronizados al tiempo 0 del transporte
                 });
             } else {
                 Object.keys(audioFiles).forEach(key => {
-                    synths[key] = { 
-                        active: false,
-                        osc: new Tone.MembraneSynth().toDestination() 
-                    };
+                    synths[key] = { active: false, osc: new Tone.MembraneSynth().toDestination() };
                 });
                 errorNotice.style.display = 'block';
             }
-
             startBtn.disabled = false;
             startBtn.classList.add('ready');
-            startBtn.innerText = useFallback ? "PROBAR (MODO SYNTH)" : "¡EMPEZAR!";
-            statusText.innerText = useFallback ? "Los archivos .ogg no están disponibles." : "¡Todo listo!";
+            startBtn.innerText = "¡EMPEZAR!";
+            statusText.innerText = "Sincronización rítmica activa.";
         }
 
         startBtn.addEventListener('click', async () => {
             await Tone.start();
-            
-            if (!isUsingSynthFallback) {
-                // Arrancamos el transporte, lo que inicia todos los sonidos sincronizados
-                Tone.Transport.start();
-            } else {
-                // Modo fallback con bucle sincronizado
-                new Tone.Loop(time => {
-                    Object.keys(synths).forEach(key => {
-                        if (synths[key].active) {
-                            if (key.includes('Surdo') || key === '1a' || key === '2a') {
-                                synths[key].osc.triggerAttackRelease("C1", "8n", time);
-                            } else {
-                                synths[key].osc.triggerAttackRelease("G2", "16n", time);
-                            }
-                        }
-                    });
-                }, "4n").start(0);
-                Tone.Transport.start();
-            }
-
+            Tone.Transport.start(); // El reloj maestro empieza a correr
             overlay.style.opacity = '0';
             setTimeout(() => overlay.style.display = 'none', 500);
         });
@@ -314,10 +301,24 @@
                 
                 if (!isUsingSynthFallback) {
                     const player = players.player(id);
-                    // Simplemente conmutamos el silencio. El sonido ya está corriendo en el fondo.
-                    player.mute = !player.mute;
-                    boton.classList.toggle('active', !player.mute);
+                    const willBeMute = !player.mute;
+
+                    // AÑADIMOS ESTADO DE ESPERA
+                    // El botón parpadeará hasta que llegue el cambio de compás
+                    boton.classList.add('waiting');
+
+                    // PROGRAMAMOS EL CAMBIO PARA EL SIGUIENTE COMPÁS (@1m)
+                    Tone.Transport.scheduleOnce((time) => {
+                        // Usamos Tone.Draw para sincronizar cambios visuales con el audio
+                        Tone.Draw.schedule(() => {
+                            player.mute = willBeMute;
+                            boton.classList.remove('waiting');
+                            boton.classList.toggle('active', !willBeMute);
+                        }, time);
+                    }, "@1m");
+
                 } else {
+                    // Lógica para modo fallback (opcional)
                     synths[id].active = !synths[id].active;
                     boton.classList.toggle('active', synths[id].active);
                 }
