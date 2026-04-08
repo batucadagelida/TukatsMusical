@@ -142,11 +142,6 @@
             color: var(--secondary);
         }
 
-        #start-btn.error {
-            background: var(--error);
-            cursor: pointer;
-        }
-
         .loading-status {
             margin-top: 15px;
             font-size: 14px;
@@ -167,14 +162,14 @@
     <div id="overlay">
         <div class="icon" style="font-size: 80px;">🥁</div>
         <h1>Batucada Interactiva</h1>
-        <p>Crea tu propio ritmo sumando instrumentos.</p>
+        <p>Crea tu propio ritmo sumando instrumentos sincronizados.</p>
         <button id="start-btn" disabled>Cargando sonidos...</button>
         <div class="loading-status" id="status-text">Conectando con los archivos de audio...</div>
         <div class="error-notice" id="error-notice">Nota: No se encontraron los archivos .ogg. Se usarán sonidos de prueba.</div>
     </div>
 
     <h1>Batucada Ensemble</h1>
-    <p class="subtitle">Haz clic en los instrumentos para sumarlos al ritmo</p>
+    <p class="subtitle">Haz clic en los instrumentos para activarlos al ritmo maestro</p>
     
     <div class="batucada-grid">
         <div class="instrumento" id="1a">
@@ -216,9 +211,7 @@
     </div>
 
     <script>
-        // Resolvemos el problema de las URLs usando rutas absolutas basadas en la ubicación actual
         const getAudioPath = (file) => {
-            // Esto ayuda a que el parseo de la URL sea exitoso en entornos de prueba
             try {
                 return new URL(file, window.location.href).href;
             } catch(e) {
@@ -247,14 +240,13 @@
         let players = null;
         let synths = {};
 
-        // Intentamos cargar los archivos
         try {
             players = new Tone.Players(audioFiles).toDestination();
             
             Tone.loaded().then(() => {
                 setupApp(false);
             }).catch(err => {
-                console.warn("No se pudieron cargar los archivos de audio. Activando modo sintético.");
+                console.warn("Archivos no encontrados. Modo sintético activado.");
                 setupApp(true);
             });
         } catch (e) {
@@ -269,10 +261,12 @@
                     const p = players.player(key);
                     p.loop = true;
                     p.mute = true;
-                    p.fadeIn = 0.1;
+                    p.fadeIn = 0.2; // Suaviza la entrada
+                    p.fadeOut = 0.2; // Suaviza la salida
+                    // Sincronizamos cada reproductor al transporte maestro
+                    p.sync().start(0);
                 });
             } else {
-                // Crear sonidos básicos para que la app sea funcional sin archivos
                 Object.keys(audioFiles).forEach(key => {
                     synths[key] = { 
                         active: false,
@@ -284,21 +278,21 @@
 
             startBtn.disabled = false;
             startBtn.classList.add('ready');
-            startBtn.innerText = useFallback ? "PROBAR CON SYNTHS" : "¡EMPEZAR!";
-            statusText.innerText = useFallback ? "Modo de compatibilidad activado." : "¡Todo listo!";
+            startBtn.innerText = useFallback ? "PROBAR (MODO SYNTH)" : "¡EMPEZAR!";
+            statusText.innerText = useFallback ? "Los archivos .ogg no están disponibles." : "¡Todo listo!";
         }
 
         startBtn.addEventListener('click', async () => {
             await Tone.start();
             
             if (!isUsingSynthFallback) {
-                Object.keys(audioFiles).forEach(key => players.player(key).start());
+                // Arrancamos el transporte, lo que inicia todos los sonidos sincronizados
+                Tone.Transport.start();
             } else {
-                // Lógica de metrónomo simple para el modo fallback
-                const loop = new Tone.Loop(time => {
-                    Object.keys(synths).forEach((key, index) => {
+                // Modo fallback con bucle sincronizado
+                new Tone.Loop(time => {
+                    Object.keys(synths).forEach(key => {
                         if (synths[key].active) {
-                            // Simulamos un ritmo básico de batucada
                             if (key.includes('Surdo') || key === '1a' || key === '2a') {
                                 synths[key].osc.triggerAttackRelease("C1", "8n", time);
                             } else {
@@ -320,6 +314,7 @@
                 
                 if (!isUsingSynthFallback) {
                     const player = players.player(id);
+                    // Simplemente conmutamos el silencio. El sonido ya está corriendo en el fondo.
                     player.mute = !player.mute;
                     boton.classList.toggle('active', !player.mute);
                 } else {
